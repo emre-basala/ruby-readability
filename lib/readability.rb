@@ -19,7 +19,7 @@ module Readability
       :blacklist                  => nil,
       :whitelist                  => nil
     }.freeze
-    
+
     REGEXES = {
         :unlikelyCandidatesRe => /combx|comment|community|disqus|extra|foot|header|menu|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup/i,
         :okMaybeItsACandidateRe => /and|article|body|column|main|shadow/i,
@@ -33,7 +33,7 @@ module Readability
         :killBreaksRe => /(<br\s*\/?>(\s|&nbsp;?)*){1,}/,
         :videoRe => /http:\/\/(www\.)?(youtube|vimeo)\.com/i
     }
-    
+
     attr_accessor :options, :html, :best_candidate, :candidates, :best_candidate_has_image
 
     def initialize(input, options = {})
@@ -143,11 +143,11 @@ module Readability
 
       (list_images.empty? and content != @html) ? images(@html, true) : list_images
     end
-    
+
     def images_with_fqdn_uris!(source_uri)
       images_with_fqdn_uris(@html, source_uri)
     end
-    
+
     def images_with_fqdn_uris(document = @html.dup, source_uri)
       uri = URI.parse(source_uri)
       host = uri.host
@@ -159,7 +159,7 @@ module Readability
       images = []
       document.css("img").each do |elem|
         begin
-          elem['src'] = URI.join(base,elem['src']).to_s if URI.parse(elem['src']).host == nil 
+          elem['src'] = URI.join(base,elem['src']).to_s if URI.parse(elem['src']).host == nil
           images << elem['src'].to_s
         rescue URI::InvalidURIError => exc
           elem.remove
@@ -229,11 +229,18 @@ module Readability
       end
     end
 
-    def content(remove_unlikely_candidates = :default)
+    def contents
+      prepare_candidates
+      get_articles(@candidates, @best_candidate).map do |article|
+        content(article)
+      end
+    end
+
+    def content(article = nil, remove_unlikely_candidates = :default)
       @remove_unlikely_candidates = false if remove_unlikely_candidates == false
 
-      prepare_candidates
-      article = get_article(@candidates, @best_candidate)
+      # prepare_candidates
+      # article = get_article(@candidates, @best_candidate)
 
       cleaned_article = sanitize(article, @candidates, options)
       if article.text.strip.length < options[:retry_length]
@@ -249,9 +256,16 @@ module Readability
         end
 
         make_html
-        content
+        content(article)
       else
         cleaned_article
+      end
+    end
+
+    def get_articles(candidates, best_candidate)
+      select_best_candidate(candidates)
+      @sorted_candidates.map do |candidate|
+        get_article(candidates, candidate)
       end
     end
 
@@ -289,14 +303,14 @@ module Readability
     end
 
     def select_best_candidate(candidates)
-      sorted_candidates = candidates.values.sort { |a, b| b[:content_score] <=> a[:content_score] }
+      @sorted_candidates = candidates.values.sort { |a, b| b[:content_score] <=> a[:content_score] }
 
       debug("Top 5 candidates:")
-      sorted_candidates[0...5].each do |candidate|
+      @sorted_candidates[0...5].each do |candidate|
         debug("Candidate #{candidate[:elem].name}##{candidate[:elem][:id]}.#{candidate[:elem][:class]} with score #{candidate[:content_score]}")
       end
 
-      best_candidate = sorted_candidates.first || { :elem => @html.css("body").first, :content_score => 0 }
+      best_candidate = @sorted_candidates.first || { :elem => @html.css("body").first, :content_score => 0 }
       debug("Best candidate #{best_candidate[:elem].name}##{best_candidate[:elem][:id]}.#{best_candidate[:elem][:class]} with score #{best_candidate[:content_score]}")
 
       best_candidate
@@ -469,7 +483,7 @@ module Readability
         weight = class_weight(el)
         content_score = candidates[el] ? candidates[el][:content_score] : 0
         name = el.name.downcase
-        
+
         if weight + content_score < 0
           el.remove
           debug("Conditionally cleaned #{name}##{el[:id]}.#{el[:class]} with weight #{weight} and content score #{content_score} because score + content score was less than zero.")
@@ -479,7 +493,7 @@ module Readability
 
           # For every img under a noscript tag discount one from the count to avoid double counting
           counts["img"] -= el.css("noscript").css("img").length
-                
+
           content_length = el.text.strip.length  # Count the text length excluding any surrounding whitespace
           link_density = get_link_density(el)
 
