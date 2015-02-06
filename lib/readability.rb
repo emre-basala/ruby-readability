@@ -61,6 +61,7 @@ module Readability
 
       @candidates     = score_paragraphs(options[:min_text_length])
       @best_candidate = select_best_candidate(@candidates)
+      @prepared = true
     end
 
     def handle_exclusions!(whitelist, blacklist)
@@ -239,8 +240,8 @@ module Readability
     def content(article = nil, remove_unlikely_candidates = :default)
       @remove_unlikely_candidates = false if remove_unlikely_candidates == false
 
-      # prepare_candidates
-      # article = get_article(@candidates, @best_candidate)
+      prepare_candidates unless @prepared
+      article ||= get_article(@candidates, @best_candidate)
 
       cleaned_article = sanitize(article, @candidates, options)
       if article.text.strip.length < options[:retry_length]
