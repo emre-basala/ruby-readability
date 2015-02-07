@@ -52,6 +52,7 @@ module Readability
       @best_candidate_has_image = true
       make_html
       handle_exclusions!(@options[:whitelist], @options[:blacklist])
+      @appended_siblings = {}
     end
 
     def prepare_candidates
@@ -270,15 +271,20 @@ module Readability
       end
     end
 
-    def get_article(candidates, best_candidate)
+    def get_article(candidates, candidate)
       # Now that we have the top candidate, look through its siblings for content that might also be related.
       # Things like preambles, content split by ads that we removed, etc.
 
-      sibling_score_threshold = [10, best_candidate[:content_score] * 0.2].max
+      sibling_score_threshold = [10, candidate[:content_score] * 0.2].max
       output = Nokogiri::XML::Node.new('div', @html)
-      best_candidate[:elem].parent.children.each do |sibling|
+
+      # candidate[:elem].parent = output
+
+      candidate[:elem].parent.children.each do |sibling|
+        # next if @appended_siblings[Digest::MD5.hexdigest(sibling.text)]
+
         append = false
-        append = true if sibling == best_candidate[:elem]
+        append = true if sibling == candidate[:elem]
         append = true if candidates[sibling] && candidates[sibling][:content_score] >= sibling_score_threshold
 
         if sibling.name.downcase == "p"
@@ -297,6 +303,7 @@ module Readability
           sibling_dup = sibling.dup # otherwise the state of the document in processing will change, thus creating side effects
           sibling_dup.name = "div" unless %w[div p].include?(sibling.name.downcase)
           output << sibling_dup
+          # @appended_siblings[Digest::MD5.hexdigest(sibling.text)] = true
         end
       end
 
@@ -305,6 +312,7 @@ module Readability
 
     def select_best_candidate(candidates)
       @sorted_candidates = candidates.values.sort { |a, b| b[:content_score] <=> a[:content_score] }
+      @sorted_candidates.reject! { |c| c[:content_score] < 0 }
 
       debug("Top 5 candidates:")
       @sorted_candidates[0...5].each do |candidate|
