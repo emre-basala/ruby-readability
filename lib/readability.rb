@@ -439,6 +439,10 @@ module Readability
         node.css("p").each do |elem|
           elem.remove if elem.content.strip.empty?
         end
+
+        node.css("div").each do |elem|
+          elem.remove if elem.content.strip.empty?
+        end
       end
 
       # Conditionally clean <table>s, <ul>s, and <div>s
