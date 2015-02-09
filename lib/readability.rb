@@ -59,7 +59,6 @@ module Readability
       list = %w{ h1 h2 h3 }
       @html.css("*").each do |elem|
         if list.include? elem.name.downcase
-          # transform <div>s that do not contain other block elements into <p>s
           elem.name = "div"
         end
       end
@@ -68,7 +67,7 @@ module Readability
     def prepare_candidates
       @html.css("script, style").each { |i| i.remove }
       # remove_unlikely_candidates! if @remove_unlikely_candidates
-      transform_some_tags_to_divs!
+      # transform_some_tags_to_divs!
       transform_misused_divs_into_paragraphs!
 
       @candidates     = score_paragraphs(options[:min_text_length])
