@@ -55,9 +55,20 @@ module Readability
       @appended_siblings = {}
     end
 
+     def transform_some_tags_to_divs!
+      list = %w{ h1 h2 h3 }
+      @html.css("*").each do |elem|
+        if list.include? elem.name.downcase
+          # transform <div>s that do not contain other block elements into <p>s
+          elem.name = "div"
+        end
+      end
+    end
+
     def prepare_candidates
       @html.css("script, style").each { |i| i.remove }
       # remove_unlikely_candidates! if @remove_unlikely_candidates
+      transform_some_tags_to_divs!
       transform_misused_divs_into_paragraphs!
 
       @candidates     = score_paragraphs(options[:min_text_length])
@@ -281,7 +292,7 @@ module Readability
       # candidate[:elem].parent = output
 
       candidate[:elem].parent.children.each do |sibling|
-        # next if @appended_siblings[Digest::MD5.hexdigest(sibling.text)]
+        next if @appended_siblings[Digest::MD5.hexdigest(sibling.text)]
 
         append = false
         append = true if sibling == candidate[:elem]
@@ -303,7 +314,7 @@ module Readability
           sibling_dup = sibling.dup # otherwise the state of the document in processing will change, thus creating side effects
           sibling_dup.name = "div" unless %w[div p].include?(sibling.name.downcase)
           output << sibling_dup
-          # @appended_siblings[Digest::MD5.hexdigest(sibling.text)] = true
+          @appended_siblings[Digest::MD5.hexdigest(sibling.text)] = true
         end
       end
 
@@ -452,7 +463,8 @@ module Readability
       base_whitelist = @options[:tags] || %w[div p]
       # We'll add whitespace instead of block elements,
       # so a<br>b will have a nice space between them
-      base_replace_with_whitespace = %w[br hr h1 h2 h3 h4 h5 h6 dl dd ol li ul address blockquote center]
+      base_replace_with_whitespace = %w[br hr h4 h5 h6 dl dd ol li ul address blockquote center]
+      # base_replace_with_whitespace = %w[br hr h1 h2 h3 h4 h5 h6 dl dd ol li ul address blockquote center]
 
       # Use a hash for speed (don't want to make a million calls to include?)
       whitelist = Hash.new
