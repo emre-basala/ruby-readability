@@ -66,7 +66,7 @@ module Readability
 
     def prepare_candidates
       @html.css("script, style").each { |i| i.remove }
-      # remove_unlikely_candidates! if @remove_unlikely_candidates
+      remove_unlikely_candidates! if @remove_unlikely_candidates
       # transform_some_tags_to_divs!
       transform_misused_divs_into_paragraphs!
 
