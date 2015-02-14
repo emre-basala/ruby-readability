@@ -59,15 +59,17 @@ module Readability
       list = %w{ h1 h2 h3 }
       @html.css("*").each do |elem|
         if list.include? elem.name.downcase
-          elem.name = "div"
+          elem.name = "p"
         end
       end
     end
 
     def prepare_candidates
       @html.css("script, style").each { |i| i.remove }
+
+      transform_some_tags_to_divs!
       remove_unlikely_candidates! if @remove_unlikely_candidates
-      # transform_some_tags_to_divs!
+
       transform_misused_divs_into_paragraphs!
 
       @candidates     = score_paragraphs(options[:min_text_length])
@@ -291,7 +293,9 @@ module Readability
       # candidate[:elem].parent = output
 
       candidate[:elem].parent.children.each do |sibling|
-        next if @appended_siblings[Digest::MD5.hexdigest(sibling.text)]
+        next if sibling.text.nil?
+        next if sibling.text.squish.empty?
+        next if @appended_siblings[Digest::MD5.hexdigest(sibling.text.squish)]
 
         append = false
         append = true if sibling == candidate[:elem]
@@ -313,7 +317,7 @@ module Readability
           sibling_dup = sibling.dup # otherwise the state of the document in processing will change, thus creating side effects
           sibling_dup.name = "div" unless %w[div p].include?(sibling.name.downcase)
           output << sibling_dup
-          @appended_siblings[Digest::MD5.hexdigest(sibling.text)] = true
+          @appended_siblings[Digest::MD5.hexdigest(sibling.text.squish)] = true
         end
       end
 
@@ -406,13 +410,15 @@ module Readability
     end
 
     def remove_unlikely_candidates!
+      return if @removed
       @html.css("*").each do |elem|
         str = "#{elem[:class]}#{elem[:id]}"
         if str =~ REGEXES[:unlikelyCandidatesRe] && str !~ REGEXES[:okMaybeItsACandidateRe] && (elem.name.downcase != 'html') && (elem.name.downcase != 'body')
-          debug("Removing unlikely candidate - #{str}")
+          # debug("Removing unlikely candidate - #{str}")
           elem.remove
         end
       end
+
     end
 
     def transform_misused_divs_into_paragraphs!
@@ -421,6 +427,7 @@ module Readability
           # transform <div>s that do not contain other block elements into <p>s
           if elem.inner_html !~ REGEXES[:divToPElementsRe]
             debug("Altering div(##{elem[:id]}.#{elem[:class]}) to p");
+
             elem.name = "p"
           end
         else
