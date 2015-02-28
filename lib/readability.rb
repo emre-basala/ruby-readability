@@ -66,6 +66,7 @@ module Readability
 
     def prepare_candidates
       @html.css("script, style").each { |i| i.remove }
+      @html.xpath('//@style["display:none"]').each {|s| s.parent.remove }
 
       transform_some_tags_to_divs!
       remove_unlikely_candidates! if @remove_unlikely_candidates
